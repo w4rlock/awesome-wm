@@ -1066,13 +1066,13 @@ end)
 
 client.add_signal("focus", function(c) 
                                 c.border_color = beautiful.border_focus 
-                                c.opacity = 0.7
+                                c.opacity = 0.8
 					  end)
 
 client.add_signal("unfocus", function(c) 
                                 c.border_color = beautiful.border_normal 
                                 --dbg_client(c)
-                                c.opacity = 0.8
+                                c.opacity = 0.9
 					    end)
 -- }}}
 
