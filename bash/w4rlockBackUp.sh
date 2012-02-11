@@ -38,7 +38,7 @@ RSYNC='rsync --archive
 HOME_DIRS=('.vim' '.mutt' '.lyrics' '.irssi' '.pentadactyl')
 HOME_FILES=('.gtkrc-2.0' '.screenrc' '.Xdefaults' '.xinitrc' '.pentadactylrc'
 
-ETC_FILES=('mpd.conf')
+ETC_FILES=('mpd.conf' '/iptables/iptables.rules')
 CONF_DIRS=('awesome' 'Thunar' 'nitrogen' 'ranger' 'luakit')
 USR_SHARE=('awesome')
 

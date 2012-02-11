@@ -87,10 +87,9 @@ awful.menu.menu_keys = {
 -- {{{ AUTORUN APPS INIT
 
 autorun = true
-autorunApps = {"urxvt"
-               --,"script"
-               --,"otroProgram"
+autorunApps = {"urxvt" --,"script"
               }
+
 if autorun then
     for app = 1, #autorunApps do
         awful.util.spawn(autorunApps[app])
