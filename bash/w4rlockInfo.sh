@@ -21,47 +21,70 @@
 LBLUE="\033[1;34m"
 LGREEN="\033[1;32m"
 LRED="\033[1;31m"    
+LNONE="\033[0m"
 
-#=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- ERROR
-function getError()
-{
-    echo -e $LRED "\n\t Error: especifique un parametro\n"
-    exit 1
-}
+BAT='/usr/bin/acpitool'
+TEMP='/usr/bin/sensors'
+MPD='/usr/bin/mpc'
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- HELP
 function getHelp()
 {   echo -e ${LBLUE} "\nOPTIONS:" ${LGREEN}
+    echo -e "\t-a : Muestra toda la informacion."
     echo -e "\t-b : Muestra informacion de la batteria."
-    echo -e "\t-m : Muestra informacion de mpd.\n"
+    echo -e "\t-m : Muestra informacion de mpd."
+    echo -e "\t-t : Muestra informacion de la temperatura (cores)\n"
     exit 0
 }
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- BATTERY
 function getBat()
 {
-    CARGADA="charged,"
-    CARGANDO="charging,"
+    if [ ! -e $BAT ]; then
+      echo -e "\n${LRED}ERROR: ${LGREEN} '$BAT' command not found.\n ${LNONE}"
+      exit 1
+    fi
+
+    CARGADA="Charged,"
+    CARGANDO="Charging,"
     STATE=`acpitool -b | awk '{print $4}'`
+
     if [[ $STATE == $CARGANDO ]]; then
         RES='+'
     elif [[ $STATE != $CARGADA ]]; then
         RES='-' 
     fi
+
     RES=${RES}`acpitool -b | awk '{print $5}'`
     CANT=$(expr length $RES) 
     echo ${RES:0:$CANT-1} #elimino la , que tiene al final
-    exit 0
 }
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- MPD
 function getMpd()
 {
+    if [ ! -e $MPD ]; then
+      echo -e "\n${LRED}ERROR: ${LGREEN} '$MPD' command not found.\n ${LNONE}"
+      exit 1
+    fi
+
     ARTIST=`mpc current -f %artist%`
     TITLE=`mpc current -f %title%`
     echo ${ARTIST}' - '${TITLE}
-    exit 0
 }
+
+#=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- TEMP
+function getTemp()
+{
+    if [ ! -e $TEMP ]; then
+      echo -e "\n${LRED}ERROR: ${LGREEN} '$TEMP' command not found.\n ${LNONE}"
+      exit 1
+    fi
+
+    TEMPS=`sensors | grep 'Core' | awk '{print $3}'`
+    echo $TEMPS
+}
+
 
 # MAIN
 if [[ $# -lt 1 ]]; then
@@ -69,8 +92,12 @@ if [[ $# -lt 1 ]]; then
     getHelp
 fi
 
-case $1 in
-   -b|--bat) getBat  ;;
-   -m|--mpd) getMpd  ;;
-  -h|--help) getHelp ;;
-esac
+for param in "$@"
+do
+  case $param in
+             -b|--bat) getBat  ;;
+             -m|--mpd) getMpd  ;;
+            -t|--temp) getTemp ;;
+            -h|--help) getHelp ;;
+  esac
+done

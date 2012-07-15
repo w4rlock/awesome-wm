@@ -28,6 +28,31 @@ require("vicious")          --Framework Widget
 
 -- }}}
 
+-- {{{ ERROR HANDLING
+-- Check if awesome encountered an error during startup and fell back to
+-- another config (This code will only ever execute for the fallback config)
+if awesome.startup_errors then
+    naughty.notify({ preset = naughty.config.presets.critical,
+                     title = "Oops, there were errors during startup!",
+                     text = awesome.startup_errors })
+end
+
+-- Handle runtime errors after startup
+do
+    local in_error = false
+    awesome.add_signal("debug::error", function (err)
+        -- Make sure we don't go into an endless error loop
+        if in_error then return end
+        in_error = true
+
+        naughty.notify({ preset = naughty.config.presets.critical,
+                         title = "Oops, an error happened!",
+                         text = err })
+        in_error = false
+    end)
+end
+-- }}}
+
 -- {{{ VARIABLES ----------------------------------------------------
 dir = awful.util.getdir("config") --DIR DE LA CONF DE AWESOME
 beautiful.init(dir.."/themes/default/theme.lua")
@@ -86,13 +111,24 @@ awful.menu.menu_keys = {
 
 -- {{{ AUTORUN APPS INIT
 
+function run_once(prg, args)
+  if not prg then
+    do return nil end
+  end
+  if not args then
+    args=""
+  end
+  awful.util.spawn_with_shell('pgrep -f -u $USER -x ' .. prg .. ' || (' .. prg .. ' ' .. args ..')')
+end
+
+
 autorun = true
 autorunApps = {"urxvt" --,"script"
               }
 
 if autorun then
     for app = 1, #autorunApps do
-        awful.util.spawn(autorunApps[app])
+          run_once(autorunApps[app])
     end
 end
 
@@ -101,7 +137,7 @@ end
 
 -- {{{ CONFIGS POR TAG -----------------------------------------------
 index = 1
-labels = { "1:arch", "2:term", "3:vim", "4:dev", "5:mpd", "6:www","7:hack" }
+labels = { "1:main", "2:term", "3:vim", "4:dev", "5:web" }
 workspace = {}
 for d = 1, #labels do -- VISIBILIDAD POR CADA TAG
     workspace[d] = { witop = true, wibottom = false }
@@ -305,11 +341,28 @@ end
 --{{{ WIDGETS ------------------------------------------------------
 
 --{{{ NETWORK 
+--net = widget({ type = "textbox" })
+--vicious.register(net,
+               --vicious.widgets.net, setColor("NET: ") .. 
+               --setColor("${" ..env.interface.. " down_kb}", "GREEN").."KB|"..setColor("${"..env.interface.. " up_kb}","RED").."KB", 3)
 
-net = widget({ type = "textbox" })
-vicious.register(net,
-                vicious.widgets.net, setColor("NET:") .. 
-                setColor("${" ..env.interface.. " down_kb}KB|${"..env.interface.. " up_kb}KB","DARKCYAN"), 3)
+net_down = awful.widget.graph({ layout = awful.widget.layout.horizontal.rightleft })
+net_down:set_width(50)
+net_down:set_background_color("#101010")
+net_down:set_color(color.GREEN)
+net_down:set_border_color("#0a0a0a")
+net_down:set_gradient_colors({ '#00FF00', '#01DF01', '#04B431' })
+vicious.register(net_down, vicious.widgets.net, "${wlan0 down_kb}", 2)
+
+
+net_up = awful.widget.graph({ layout = awful.widget.layout.horizontal.rightleft })
+net_up:set_width(50)
+net_up:set_background_color("#101010")
+net_up:set_color(color.RED)
+net_up:set_border_color("#0a0a0a")
+net_up:set_gradient_colors({ '#FF0000', '#B40404', '#8A0808' })
+vicious.register(net_up, vicious.widgets.net, "${wlan0 up_kb}", 2)
+
 --}}}
 
 --{{{ SEPARATOR 
@@ -326,53 +379,61 @@ vicious.register(datewidget, vicious.widgets.date,
 --}}}
 
 --{{{ TEMP CPU 
---tempwidget = widget({ type = "textbox" })
-    --vicious.register(tempwidget, vicious.widgets.thermal,
-    --function (widget, args)
-        --if  args[1] >= 65 and args[1] < 75 then
-            --return setColor("TEM: ") .. setColor(args[1] .. "°C","YELLOW")
-        --elseif args[1] >= 75 and args[1] < 80 then
-            --return setColor("TEM: ") .. setColor(args[1] .. "°C","RED")
-        --else
-            --return setColor("TEM: ") .. setColor(args[1] .. "°C","DARKCYAN")
-        --end
-    --end, 19, "thermal_zone0" )
+tempwidget = widget({ type = "textbox" })
+function update_temp()
+     local inf = io.popen(dir.."/bash/w4rlockInfo.sh -t")
+     temp_core = inf:read()
+
+     if temp_core ~= "" then 
+          tempwidget.text = setColor('TEM: ') .. setColor(temp_core,"DARKCYAN")
+     end
+     inf:close()
+end
+
+--vicious.register(tempwidget, vicious.widgets.thermal,
+--function (widget, args)
+   --if  args[1] >= 65 and args[1] < 75 then
+       --return setColor("TEM: ") .. setColor(args[1] .. "°C","YELLOW")
+   --elseif args[1] >= 75 and args[1] < 80 then
+       --return setColor("TEM: ") .. setColor(args[1] .. "°C","RED")
+   --else
+       --return setColor("TEM: ") .. setColor(args[1] .. "°C","DARKCYAN")
+   --end
+--end, 19, "thermal_zone0" )
 --}}}
 
 -- {{{ UPTIME 
 
-uptimewidget = widget({ type = "textbox", height=20 })
-vicious.register(uptimewidget, vicious.widgets.uptime,
-function (widget, args)
-return string.format(setColor("UP:")..setColor("%2d:%02d:%02d ","DARKCYAN"), args[1], args[2], args[3]) end, 61)
+--uptimewidget = widget({ type = "textbox", height=20 })
+--vicious.register(uptimewidget, vicious.widgets.uptime,
+--function (widget, args)
+--return string.format(setColor("UP:")..setColor("%2d:%02d:%02d ","DARKCYAN"), args[1], args[2], args[3]) end, 61)
 
 -- }}}
 
 --{{{ CPU USAGE 
 
 cpu = widget({ type = "textbox" })
+--cpu_g1 = awful.widget.graph({ layout = awful.widget.layout.horizontal.rightleft })
+--cpu_g1:set_width(50)
+--cpu_g1:set_background_color("#101010")
+--cpu_g1:set_color("#00FFFF")
+--cpu_g1:set_border_color("#0a0a0a")
+--cpu_g1:set_gradient_colors({ '#0B615E', '#01DFD7', '#81F7F3' })
+--vicious.register(cpu_g1, vicious.widgets.cpu, "$2", 1)
 
-cpu_g1 = awful.widget.graph({ layout = awful.widget.layout.horizontal.rightleft })
-cpu_g1:set_width(50)
-cpu_g1:set_background_color("#101010")
-cpu_g1:set_color("#00FFFF")
-cpu_g1:set_border_color("#0a0a0a")
-cpu_g1:set_gradient_colors({ '#0B615E', '#01DFD7', '#81F7F3' })
-vicious.register(cpu_g1, vicious.widgets.cpu, "$2", 1)
+--cpu_g2 = awful.widget.graph({ layout = awful.widget.layout.horizontal.rightleft })
+--cpu_g2:set_width(50)
+--cpu_g2:set_background_color("#101010")
+--cpu_g2:set_color("#00FFFF")
+--cpu_g2:set_border_color("#0a0a0a")
+--cpu_g2:set_gradient_colors({ '#0B615E', '#01DFD7', '#81F7F3' })
 
-cpu_g2 = awful.widget.graph({ layout = awful.widget.layout.horizontal.rightleft })
-cpu_g2:set_width(50)
-cpu_g2:set_background_color("#101010")
-cpu_g2:set_color("#00FFFF")
-cpu_g2:set_border_color("#0a0a0a")
-cpu_g2:set_gradient_colors({ '#0B615E', '#01DFD7', '#81F7F3' })
-
-vicious.register(cpu_g2, vicious.widgets.cpu, "$3", 1)
+--vicious.register(cpu_g2, vicious.widgets.cpu, "$3", 1)
 
 --}}}
 
 --{{{ WIFI 
-
 --wifiwidget = widget({type = "textbox"})
 --vicious.register(wifiwidget, vicious.widgets.wifi, setColor("${ssid}")..setColor(" ${link}% ${rate} ","DARKCYAN"), 5, "eth1")
 
@@ -388,8 +449,7 @@ vicious.register(batwidget, vicious.widgets.bat, setColor("BAT:")..setColor("$1$
 --{{{ FILESYSTEM 
 
 fs = widget({ type = "textbox" })
-vicious.register(fs, vicious.widgets.fs, setColor("FS:")..setColor("${/ used_gb}GB ${/ used_p}%","DARKCYAN"), 20)
-
+--vicious.register(fs, vicious.widgets.fs, setColor("FS:")..setColor("${/ used_gb}GB ${/ used_p}%","DARKCYAN"), 20)
 --}}}
 
 --{{{ MEM 
@@ -416,20 +476,20 @@ vicious.register(mem,vicious.widgets.mem, setColor("MEM:")..setColor("$1% $2MB",
 --{{{ CPU 
 
 jiffies = {}
-   function activecpu()
-	   local s = ""
-	   for line in io.lines("/proc/stat") do
-		   local cpu, newjiffies = string.match(line, "(cpu%d)\ +(%d+)")
-		   if cpu and newjiffies then
-			   if not jiffies[cpu] then
-				   jiffies[cpu] = newjiffies
-			   end
-			   s = s .. setColor("CPU:")..setColor((newjiffies-jiffies[cpu]) .. "% ","DARKCYAN")
-			   jiffies[cpu] = newjiffies
-		   end
-	   end
-	   return s
+function activecpu()
+   local s = ""
+   for line in io.lines("/proc/stat") do
+        local cpu, newjiffies = string.match(line, "(cpu%d)\ +(%d+)")
+        if cpu and newjiffies then
+             if not jiffies[cpu] then
+                  jiffies[cpu] = newjiffies
+             end
+             s = s ..setColor((newjiffies-jiffies[cpu]) .. "% ","DARKCYAN")
+             jiffies[cpu] = newjiffies
+        end
    end
+   return s
+end
 
 --}}}
 
@@ -456,13 +516,13 @@ now_playing = ""
 mpdwidget = widget({ type = "textbox"})
 function now_playing_update()
      local inf = io.popen(dir.."/bash/w4rlockInfo.sh -m")
-     now_playing = escape(inf:read())
+     now_playing = inf:read()
 
      if now_playing ~= " - " then 
         if now_playing:len() > 57 then
            now_playing = now_playing:sub(1,57).."..."
         end
-        mpdwidget.text = setColor(" "..now_playing)
+        mpdwidget.text = setColor(" "..escape(now_playing))
      else
         now_playing = ""
         mpdwidget.text = setColor(" MPD:")..setColor(" -- ","DARKCYAN")
@@ -489,18 +549,18 @@ mpdwidget:add_signal("mouse::leave", function() notify_destroy(msg) end)
 
 --{{{ KEYBOARD LANG 
 --CAMBIO RAPIDO DE IDIOMA DE TECLADO ES - US
-keyboard_lang = widget({ type = "textbox"})
-keyboard_lang.text = setColor("[US]")
-keyboard_lang:buttons(awful.util.table.join(
-                      awful.button({ }, 1, function()
-                                              if keyboard_lang.text:sub(29,30) == "ES" then
-                                                 keyboard_lang.text = setColor("[US]","CYAN")
-                                                 awful.util.spawn_with_shell("setxkbmap us")
-                                              else
-                                                 keyboard_lang.text = setColor("[ES]","CYAN")
-                                                 awful.util.spawn_with_shell("setxkbmap es")
-                                              end
-                                            end)))
+--keyboard_lang = widget({ type = "textbox"})
+--keyboard_lang.text = setColor("[US]")
+--keyboard_lang:buttons(awful.util.table.join(
+                      --awful.button({ }, 1, function()
+                                              --if keyboard_lang.text:sub(29,30) == "ES" then
+                                                 --keyboard_lang.text = setColor("[US]","CYAN")
+                                                 --awful.util.spawn_with_shell("setxkbmap us")
+                                              --else
+                                                 --keyboard_lang.text = setColor("[ES]","CYAN")
+                                                 --awful.util.spawn_with_shell("setxkbmap es")
+                                              --end
+                                            --end)))
 --}}}
 
 --}}} END WIDGETS
@@ -599,14 +659,15 @@ end
 timers = {}
 timers["cpu"] = timer({ timeout = 2 })
 timers["cpu"]:add_signal("timeout", function()
-									 cpu.text = activecpu()
-									 now_playing_update()
-							 end)
+                         cpu.text = setColor("CPU: ") .. activecpu()
+                         now_playing_update()
+                         update_temp()
+                         end)
 timers["cpu"]:start()
 
-timers["bat"] = timer({ timeout = 28})
-timers["bat"]:add_signal("timeout", function() getNotification() end)
-timers["bat"]:start()
+--timers["bat"] = timer({ timeout = 28})
+--timers["bat"]:add_signal("timeout", function() getNotification() end)
+--timers["bat"]:start()
 
 --timers["mpd"] = timer({ timeout = 2})
 --timers["mpd"]:add_signal("timeout", function() now_playing_update() end)
@@ -627,7 +688,7 @@ mytasklist.buttons = awful.util.table.join(
                                                   instance:hide()
                                                   instance = nil
                                               else
-											  	  menu_hide(mymainmenu,nil)
+                                                  menu_hide(mymainmenu,nil)
                                                   instance = awful.menu.clients({ width=250 })
                                               end
                                           end),
@@ -679,29 +740,31 @@ for s = 1, screen.count() do
 
     if s == 1 then table.insert(right_aligned, mysystray) end
 
-	table.insert(right_aligned, mylayoutbox[s])
-	table.insert(right_aligned, datewidget)
-	--table.insert(right_aligned, spacer)
-	--table.insert(right_aligned, mail)
-	--table.insert(right_aligned, w_imap) 
-	table.insert(right_aligned, spacer)
-	table.insert(right_aligned, keyboard_lang)
+     table.insert(right_aligned, mylayoutbox[s])
+     table.insert(right_aligned, datewidget)
+     --table.insert(right_aligned, spacer)
+     --table.insert(right_aligned, mail)
+     --table.insert(right_aligned, w_imap) 
+     --table.insert(right_aligned, keyboard_lang)
+     --table.insert(right_aligned, spacer)
+     --table.insert(right_aligned, cpu_g1)
+     --table.insert(right_aligned, cpu_g2)
      table.insert(right_aligned, spacer)
-     table.insert(right_aligned, cpu_g1)
-     table.insert(right_aligned, cpu_g2)
+     table.insert(right_aligned, cpu)
      table.insert(right_aligned, spacer)
-	table.insert(right_aligned, cpu)
-	table.insert(right_aligned, spacer)
-	table.insert(right_aligned, batwidget)
-	table.insert(right_aligned, spacer)
-     table.insert(right_aligned, net)
-	table.insert(right_aligned, spacer)
-	table.insert(right_aligned, fs)
-	table.insert(right_aligned, spacer)
-	table.insert(right_aligned, mem)
+     --table.insert(right_aligned, net)
+     table.insert(right_aligned, net_down)
+     table.insert(right_aligned, net_up)
+     table.insert(right_aligned, spacer)
+     table.insert(right_aligned, batwidget)
+     table.insert(right_aligned, spacer)
+     table.insert(right_aligned, tempwidget)
+     --table.insert(right_aligned, fs)
+     table.insert(right_aligned, spacer)
+     table.insert(right_aligned, mem)
 
     mywibox[s].widgets = {
-	   mylauncher,
+        mylauncher,
         mytaglist[s],
         spacer,
         mypromptbox[s],
@@ -709,7 +772,7 @@ for s = 1, screen.count() do
         layout = awful.widget.layout.horizontal.leftright,
         height = mywibox[s].height
     }
-	
+
     mywibox_bottom[s] = awful.wibox({ align="center", position = "bottom", screen = s, height=16 })
     mywibox_bottom[s]:buttons(awful.util.table.join( 
                        --awful.button({  }, 1, function () awful.mouse.wibox.move(mywibox_bottom[s]) end),
@@ -718,13 +781,13 @@ for s = 1, screen.count() do
              ))
     mywibox_bottom[s].visible = false
     mywibox_bottom[s].widgets={
-	{ 
-		layout = awful.widget.layout.horizontal.rightleft,
-		uptimewidget,
-		spacer
-		--wifiwidget
-		--batwidget,
-		--spacer
+     { 
+          layout = awful.widget.layout.horizontal.rightleft
+          --uptimewidget,
+          --spacer
+          --wifiwidget
+          --batwidget,
+          --spacer
 
 	},
 		layout = awful.widget.layout.horizontal.leftright,
@@ -785,10 +848,10 @@ globalkeys = awful.util.table.join(
 							  coverart_show() 
 				  end),
 	awful.key({}, "XF86AudioPrev",
-				  function()--+++++++++++++++++++++++++++++++++++++++++++++++++ PREVIOUS SONG
-							  awful.util.spawn_with_shell(keyboard_action.prev)
-							  now_playing_update()
-							  coverart_show() 
+                      function()--+++++++++++++++++++++++++++++++++++++++++++++++++ PREVIOUS SONG
+                                     awful.util.spawn_with_shell(keyboard_action.prev)
+                                     now_playing_update()
+                                     coverart_show() 
 				  end),
 	awful.key({}, "XF86AudioPause", function() awful.util.spawn_with_shell(keyboard_action.pause) end ),
 	--awful.key({}, "XF86AudioStop", function() awful.util.spawn_with_shell(keyboard_action.stop) end ),
@@ -1065,15 +1128,17 @@ end)
 
 client.add_signal("focus", function(c) 
                                 c.border_color = beautiful.border_focus 
-                                c.opacity = 0.8
+                                --c.opacity = 0.6
 					  end)
 
 client.add_signal("unfocus", function(c) 
                                 c.border_color = beautiful.border_normal 
                                 --dbg_client(c)
-                                c.opacity = 0.9
+                                --c.opacity = 0.9
 					    end)
 -- }}}
 
-awful.util.spawn_with_shell("sleep 3 && xsetroot -cursor_name left_ptr")
+awful.util.spawn_with_shell("sleep 2 && xsetroot -cursor_name left_ptr")
+awful.util.spawn_with_shell("sleep 2 && xrandr --output HDMI1 --primary --mode 1920x1080")
+
 -- vim: foldmethod=marker:filetype=lua:expandtab:shiftwidth=5:tabstop=5:softtabstop=5:textwidth=80

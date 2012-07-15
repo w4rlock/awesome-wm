@@ -25,11 +25,23 @@ awful.rules.rules = {
     --}}}
 
     --{{{ FIREFOX
-    { rule = { instance = "Navigator" },
-      properties = { tag = tags[1][6],
+    { rule = { class = "Firefox" },
+      properties = { tag = tags[1][5],
                      switchtotag = true,
                      --floating = true
                      --skip_taskbar = true
+                     border_with = 0
+                    }},
+    --}}} 
+    
+    --{{{ FIREFOX DOWNLOAD
+    { rule = { class = "Firefox",
+               instance = "Download" },
+      properties = { tag = tags[1][5],
+                     switchtotag = true,
+                     floating = true,
+                     geometry = { x=20, y=40, height=220, width=420 },   
+                     --skip_taskbar = true,
                      border_with = 0
                     }},
     --}}} 
